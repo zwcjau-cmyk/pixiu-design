@@ -1,0 +1,125 @@
+@import "tailwindcss";
+
+@theme {
+  /* Earth-tone warm palette - MD3 inspired */
+  --color-primary: #8B5E3C;
+  --color-primary-light: #B8845C;
+  --color-primary-container: #FFDCBE;
+  --color-on-primary: #FFFFFF;
+  --color-on-primary-container: #2E1500;
+  
+  --color-secondary: #6B7B52;
+  --color-secondary-light: #96A87A;
+  --color-secondary-container: #E8F5D4;
+  --color-on-secondary: #FFFFFF;
+  --color-on-secondary-container: #1F3300;
+  
+  --color-tertiary: #C17A50;
+  --color-tertiary-container: #FFE0CC;
+  --color-on-tertiary: #FFFFFF;
+  
+  --color-surface: #FFF8F3;
+  --color-surface-dim: #F5EDE6;
+  --color-surface-container: #FFF1E8;
+  --color-surface-container-low: #FFF6F0;
+  --color-surface-container-high: #FFEBD9;
+  --color-surface-container-highest: #FFE4CC;
+  
+  --color-on-surface: #2E1500;
+  --color-on-surface-variant: #52443C;
+  --color-outline: #85736A;
+  --color-outline-variant: #D7C3B8;
+  
+  --color-error: #BA1A1A;
+  --color-error-container: #FFDAD6;
+  
+  --color-amber-warm: #F5A623;
+  --color-sage: #8FA87A;
+  --color-terracotta: #C17A50;
+  --color-cream: #FFF8F0;
+  --color-beige: #F5E6D3;
+  --color-gold: #D4A854;
+  
+  /* Typography */
+  --font-display: 'ZCOOL KuaiLe', cursive;
+  --font-body: 'Noto Sans SC', sans-serif;
+  
+  /* Border radius - MD3 tokens */
+  --radius-xs: 4px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+  --radius-2xl: 28px;
+  --radius-full: 9999px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  font-family: var(--font-body);
+  background: #E8DDD4;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+/* Scrollbar styling */
+::-webkit-scrollbar {
+  width: 0;
+  height: 0;
+}
+
+/* Animation keyframes */
+@keyframes float {
+  0%, 100% { transform: translateY(0px); }
+  50% { transform: translateY(-6px); }
+}
+
+@keyframes pulse-soft {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.7; }
+}
+
+@keyframes slide-up {
+  from { transform: translateY(20px); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes bounce-in {
+  0% { transform: scale(0.8); opacity: 0; }
+  60% { transform: scale(1.05); }
+  100% { transform: scale(1); opacity: 1; }
+}
+
+.animate-float {
+  animation: float 3s ease-in-out infinite;
+}
+
+.animate-pulse-soft {
+  animation: pulse-soft 2s ease-in-out infinite;
+}
+
+.animate-slide-up {
+  animation: slide-up 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
+
+.animate-fade-in {
+  animation: fade-in 0.4s ease-out forwards;
+}
+
+.animate-bounce-in {
+  animation: bounce-in 0.5s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
+}
