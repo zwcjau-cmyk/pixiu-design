@@ -1,5 +1,5 @@
 import { useState, useRef, useEffect } from 'react'
-import { Flame, Star, Trophy, ShoppingBag, X, Camera, Loader2, Plus } from 'lucide-react'
+import { Flame, Star, Trophy, ShoppingBag, X, Camera, Loader2 } from 'lucide-react'
 
 // Calendar data for current month
 const calendarDays = [

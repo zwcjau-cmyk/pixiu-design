@@ -1,4 +1,4 @@
-import { useState, useRef } from 'react'
+import { useState } from 'react'
 import PixiuSpace from './components/PixiuSpace'
 import WealthVault from './components/WealthVault'
 import TreasurePavilion from './components/TreasurePavilion'
