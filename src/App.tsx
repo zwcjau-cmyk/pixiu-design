@@ -5,7 +5,6 @@ import TreasurePavilion from './components/TreasurePavilion'
 import BottomNav from './components/BottomNav'
 
 function App() {
-  const params = new URLSearchParams(window.location.search)
   const initialTab = 1
   const [activeTab, setActiveTab] = useState(initialTab)
   const [pendingMessage, setPendingMessage] = useState<string | null>(null)
