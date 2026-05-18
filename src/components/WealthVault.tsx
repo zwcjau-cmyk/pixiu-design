@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { Droplets, Lock, BookOpen, ChevronRight, TrendingUp } from 'lucide-react'
 import AccountDetail from './AccountDetail'
-import { API_BASE } from '../config'
+import { API_BASE, getUserId } from '../config'
 
 const defaultGoals = [
   { name: 'AirPods Pro', progress: 72, amount: '¥1,295/¥1,799', emoji: '🎧' },
@@ -57,7 +57,7 @@ export default function WealthVault({ isActive, onSwitchToAgent }: { isActive?: 
   const [selectedAccount, setSelectedAccount] = useState<string | null>(null)
 
   function loadVaultData() {
-    fetch(`${API_BASE}/api/vault/status`)
+    fetch(`${API_BASE}/api/vault/status?user_id=${getUserId()}`)
       .then(res => res.json())
       .then(data => setVaultData(data))
       .catch(() => {})

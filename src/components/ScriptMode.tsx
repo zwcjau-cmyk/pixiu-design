@@ -1,6 +1,6 @@
 import { useState, useRef, useEffect } from 'react'
 import { Send, ArrowLeft, Sparkles, Loader2 } from 'lucide-react'
-import { API_BASE } from '../config'
+import { API_BASE, getUserId } from '../config'
 
 interface Message {
   type: 'agent' | 'user'
@@ -131,7 +131,7 @@ export default function ScriptMode({ onBack }: ScriptModeProps) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           message: `我选择剧本「${scriptName}」（script_id: ${scriptId}），请开始第一章的剧情！用剧本设定的角色来跟我对话。`,
-          user_id: 'web_user',
+          user_id: getUserId(),
           session_id: sessionId,
         }),
       })
@@ -228,7 +228,7 @@ export default function ScriptMode({ onBack }: ScriptModeProps) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           message: text.trim(),
-          user_id: 'web_user',
+          user_id: getUserId(),
           session_id: sessionId,
         }),
       })

@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react'
 import { ArrowLeft, TrendingUp, ArrowDownRight, ArrowUpRight, Loader2 } from 'lucide-react'
-import { API_BASE } from '../config'
+import { API_BASE, getUserId } from '../config'
 
 interface Product {
   name: string
@@ -45,7 +45,7 @@ export default function AccountDetail({ accountId, onBack, onWithdraw }: Props) 
   const [withdrawReason, setWithdrawReason] = useState('')
 
   useEffect(() => {
-    fetch(`${API_BASE}/api/vault/account/${accountId}`)
+    fetch(`${API_BASE}/api/vault/account/${accountId}?user_id=${getUserId()}`)
       .then(res => res.json())
       .then(d => {
         setData(d)
@@ -63,6 +63,7 @@ export default function AccountDetail({ accountId, onBack, onWithdraw }: Props) 
         account_id: accountId,
         amount: Number(withdrawAmount),
         reason: withdrawReason,
+        user_id: getUserId(),
       }),
     })
     const result = await res.json()

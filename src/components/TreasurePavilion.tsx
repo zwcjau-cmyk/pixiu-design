@@ -168,7 +168,7 @@ export default function TreasurePavilion({ isActive }: { isActive?: boolean }) {
   function loadDayDetail(day: number) {
     const dateStr = `${viewYear}-${String(viewMonth).padStart(2, '0')}-${String(day).padStart(2, '0')}`
     setLoadingDay(true)
-    fetch(`${API_BASE}/api/expense/day/${dateStr}`)
+    fetch(`${API_BASE}/api/expense/day/${dateStr}?user_id=${getUserId()}`)
       .then(res => res.json())
       .then(data => {
         setDayDetail(data)

@@ -2,7 +2,7 @@ import { useState, useRef, useEffect, type ComponentPropsWithoutRef } from 'reac
 import { Send, Sparkles, Loader2 } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import ScriptMode from './ScriptMode'
-import { API_BASE } from '../config'
+import { API_BASE, getUserId } from '../config'
 
 interface Message {
   type: 'agent' | 'user'
@@ -121,7 +121,7 @@ export default function PixiuSpace({ isActive, pendingMessage, onMessageConsumed
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           message: text.trim(),
-          user_id: 'web_user',
+          user_id: getUserId(),
           session_id: sessionId,
         }),
       })
@@ -310,7 +310,7 @@ export default function PixiuSpace({ isActive, pendingMessage, onMessageConsumed
                     headers: { 'Content-Type': 'application/json' },
                     body: JSON.stringify({
                       message: reply.query,
-                      user_id: 'web_user',
+                      user_id: getUserId(),
                       session_id: sessionId,
                     }),
                   })
