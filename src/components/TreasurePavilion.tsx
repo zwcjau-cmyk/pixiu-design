@@ -98,7 +98,7 @@ export default function TreasurePavilion({ isActive }: { isActive?: boolean }) {
   function loadCalendarData(year: number, month: number) {
     const grid = generateCalendarGrid(year, month)
 
-    fetch(`${API_BASE}/api/expense/summary`)
+    fetch(`${API_BASE}/api/expense/summary?user_id=${getUserId()}`)
       .then(res => res.json())
       .then(data => {
         if (data.records && data.records.length > 0) {

@@ -29,7 +29,7 @@ const PRESET_SCRIPTS = [
     borderColor: 'border-amber-200',
   },
   {
-    id: 'boy_band_01',
+    id: 'boy_band_02',
     name: '重生之嫁给男团队长',
     icon: '💕',
     desc: '和霸总队长一起攒婚礼基金，甜到上头！',
