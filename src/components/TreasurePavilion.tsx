@@ -85,7 +85,7 @@ export default function TreasurePavilion({ isActive }: { isActive?: boolean }) {
           const mapped = data.items.map((item: { name: string; price: number; sticker_url: string; date: string }) => ({
             name: item.name,
             price: `¥${item.price}`,
-            img: item.sticker_url,
+            img: item.sticker_url.startsWith('http') ? item.sticker_url : `${API_BASE}${item.sticker_url}`,
             date: item.date,
           }))
           setDynamicItems(mapped)
