@@ -1,49 +1,16 @@
 import { useState, useEffect } from 'react'
-import { Droplets, Lock, BookOpen, ChevronRight, TrendingUp } from 'lucide-react'
+import { Droplets, Lock, BookOpen, ChevronRight, TrendingUp, AlertCircle, Loader2, RefreshCw } from 'lucide-react'
 import AccountDetail from './AccountDetail'
 import { API_BASE, getUserId } from '../config'
 
-const defaultGoals = [
-  { name: 'AirPods Pro', progress: 72, amount: '¥1,295/¥1,799', emoji: '🎧' },
-  { name: '毕业旅行基金', progress: 45, amount: '¥2,250/¥5,000', emoji: '✈️' },
-  { name: '新款iPad', progress: 28, amount: '¥980/¥3,499', emoji: '📱' },
-]
-
 const ACCOUNT_IDS = ['active_pool', 'fixed_deposit', 'fund_collection'] as const
-
-const defaultAssetCards = [
-  {
-    icon: Droplets,
-    title: '活期池',
-    amount: '¥3,428.50',
-    subtitle: '年化 1.8%',
-    color: 'from-[#87CEEB]/20 to-[#B0E0E6]/10',
-    iconColor: 'text-[#4A90D9]',
-    borderColor: 'border-[#87CEEB]/30',
-  },
-  {
-    icon: Lock,
-    title: '定期舱',
-    amount: '¥8,000.00',
-    subtitle: '90天 · 年化 3.2%',
-    color: 'from-amber-warm/10 to-gold/5',
-    iconColor: 'text-amber-warm',
-    borderColor: 'border-amber-warm/20',
-  },
-  {
-    icon: BookOpen,
-    title: '基金图鉴',
-    amount: '¥2,150.80',
-    subtitle: '本月 +2.3%',
-    color: 'from-sage/15 to-secondary/5',
-    iconColor: 'text-sage',
-    borderColor: 'border-sage/30',
-  },
-]
 
 interface VaultData {
   total_assets: number
   monthly_growth: number
+  monthly_net_flow?: number
+  is_demo?: boolean
+  data_updated_at?: string
   accounts: {
     active_pool: { label: string; balance: number; rate: string }
     fixed_deposit: { label: string; balance: number; rate: string; term: string }
@@ -55,12 +22,23 @@ interface VaultData {
 export default function WealthVault({ isActive, onSwitchToAgent }: { isActive?: boolean; onSwitchToAgent?: (message: string) => void }) {
   const [vaultData, setVaultData] = useState<VaultData | null>(null)
   const [selectedAccount, setSelectedAccount] = useState<string | null>(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
 
   function loadVaultData() {
+    setLoading(true)
+    setError('')
     fetch(`${API_BASE}/api/vault/status?user_id=${getUserId()}`)
-      .then(res => res.json())
+      .then(res => {
+        if (!res.ok) throw new Error('金库暂时无法连接')
+        return res.json()
+      })
       .then(data => setVaultData(data))
-      .catch(() => {})
+      .catch(() => {
+        setVaultData(null)
+        setError('金库数据加载失败。为避免误导，当前不会显示模拟余额。')
+      })
+      .finally(() => setLoading(false))
   }
 
   useEffect(() => { loadVaultData() }, [])
@@ -70,16 +48,30 @@ export default function WealthVault({ isActive, onSwitchToAgent }: { isActive?: 
     if (isActive) loadVaultData()
   }, [isActive])
 
-  const totalAssets = vaultData ? `¥${vaultData.total_assets.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}` : '¥13,579.30'
-  const monthlyGrowth = vaultData ? `本月 +¥${vaultData.monthly_growth}` : '本月 +¥856'
+  if (loading && !vaultData) {
+    return <div className="flex h-full items-center justify-center"><Loader2 size={24} className="animate-spin text-primary" aria-label="正在加载金库" /></div>
+  }
 
-  const assetCards = vaultData
-    ? [
+  if (!vaultData || error) {
+    return (
+      <div className="flex h-full flex-col items-center justify-center gap-3 px-8 text-center">
+        <AlertCircle size={28} className="text-error" />
+        <p className="text-sm leading-relaxed text-on-surface-variant">{error || '金库数据暂时不可用'}</p>
+        <button onClick={loadVaultData} className="flex items-center gap-2 rounded-xl bg-primary-container px-4 py-2.5 text-sm font-medium text-primary"><RefreshCw size={14} />重新加载</button>
+      </div>
+    )
+  }
+
+  const totalAssets = `¥${vaultData.total_assets.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}`
+  const assetChange = vaultData.monthly_net_flow ?? vaultData.monthly_growth
+  const monthlyGrowth = `资产变动 ${assetChange >= 0 ? '+' : ''}¥${assetChange}`
+
+  const assetCards = [
         {
           icon: Droplets,
           title: vaultData.accounts.active_pool.label,
           amount: `¥${vaultData.accounts.active_pool.balance.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}`,
-          subtitle: `年化 ${vaultData.accounts.active_pool.rate}`,
+          subtitle: `参考年化 ${vaultData.accounts.active_pool.rate} · 灵活取用`,
           color: 'from-[#87CEEB]/20 to-[#B0E0E6]/10',
           iconColor: 'text-[#4A90D9]',
           borderColor: 'border-[#87CEEB]/30',
@@ -88,7 +80,7 @@ export default function WealthVault({ isActive, onSwitchToAgent }: { isActive?: 
           icon: Lock,
           title: vaultData.accounts.fixed_deposit.label,
           amount: `¥${vaultData.accounts.fixed_deposit.balance.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}`,
-          subtitle: `${vaultData.accounts.fixed_deposit.term} · 年化 ${vaultData.accounts.fixed_deposit.rate}`,
+          subtitle: `${vaultData.accounts.fixed_deposit.term} · 参考年化 ${vaultData.accounts.fixed_deposit.rate}`,
           color: 'from-amber-warm/10 to-gold/5',
           iconColor: 'text-amber-warm',
           borderColor: 'border-amber-warm/20',
@@ -97,22 +89,19 @@ export default function WealthVault({ isActive, onSwitchToAgent }: { isActive?: 
           icon: BookOpen,
           title: vaultData.accounts.fund_collection.label,
           amount: `¥${vaultData.accounts.fund_collection.balance.toLocaleString('zh-CN', { minimumFractionDigits: 2 })}`,
-          subtitle: `本月 ${vaultData.accounts.fund_collection.rate}`,
+          subtitle: `近一月涨跌 ${vaultData.accounts.fund_collection.rate} · 净值波动`,
           color: 'from-sage/15 to-secondary/5',
           iconColor: 'text-sage',
           borderColor: 'border-sage/30',
         },
       ]
-    : defaultAssetCards
 
-  const goals = vaultData
-    ? vaultData.goals.map(g => ({
+  const goals = vaultData.goals.map(g => ({
         name: g.name,
         progress: Math.round((g.current / g.target) * 100),
         amount: `¥${g.current.toLocaleString('zh-CN')}/¥${g.target.toLocaleString('zh-CN')}`,
         emoji: g.emoji,
       }))
-    : defaultGoals
 
   // 如果选中了某个账户，显示详情子页面
   if (selectedAccount) {
@@ -136,15 +125,17 @@ export default function WealthVault({ isActive, onSwitchToAgent }: { isActive?: 
           <div className="flex items-center gap-2 mb-1">
             <div className="w-1 h-4 rounded-full bg-primary" />
             <h2 className="text-lg font-bold text-on-surface tracking-tight">总资产</h2>
+            {vaultData.is_demo && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">体验数据</span>}
           </div>
           <div className="flex items-center gap-2 mt-0.5">
             <p className="text-xl font-bold text-on-surface font-body">{totalAssets}</p>
             <div className="flex items-center gap-1 px-2 py-0.5 bg-secondary-container/60 rounded-full">
               <TrendingUp size={12} className="text-secondary" />
-              <span className="text-[11px] text-secondary font-medium">{monthlyGrowth}</span>
+              <span className="text-xs text-secondary font-medium">{monthlyGrowth}</span>
             </div>
           </div>
-          <p className="text-[10px] text-on-surface-variant/70 mt-1">理财类产品都以月初的收益计算，并不是每日更新。</p>
+          <p className="mt-1 text-xs leading-relaxed text-on-surface-variant/80">资产变动包含转入、转出与收益，不等同于投资收益。</p>
+          {vaultData.data_updated_at && <p className="mt-0.5 text-xs text-on-surface-variant/70">数据更新：{vaultData.data_updated_at}</p>}
         </div>
         <img src="/images/2D卡通资金池设计 (2).png" alt="资金池" className="w-16 h-16 object-contain" />
       </div>
@@ -154,23 +145,24 @@ export default function WealthVault({ isActive, onSwitchToAgent }: { isActive?: 
         {assetCards.map((card, idx) => {
           const Icon = card.icon
           return (
-            <div
+            <button
+              type="button"
               key={idx}
               onClick={() => setSelectedAccount(ACCOUNT_IDS[idx])}
-              className={`flex items-center gap-3 p-3.5 rounded-xl bg-gradient-to-r ${card.color} border ${card.borderColor} hover:shadow-sm transition-all duration-200 cursor-pointer active:scale-[0.98]`}
+              className={`flex w-full items-center gap-3 p-3.5 text-left rounded-xl bg-gradient-to-r ${card.color} border ${card.borderColor} hover:shadow-sm transition-all duration-200 cursor-pointer active:scale-[0.98]`}
             >
               <div className={`w-10 h-10 rounded-xl bg-white/80 flex items-center justify-center ${card.iconColor} shadow-sm`}>
                 <Icon size={18} />
               </div>
               <div className="flex-1">
                 <p className="text-sm font-medium text-on-surface">{card.title}</p>
-                <p className="text-[11px] text-on-surface-variant mt-0.5">{card.subtitle}</p>
+                <p className="mt-0.5 text-xs text-on-surface-variant">{card.subtitle}</p>
               </div>
               <div className="text-right">
                 <p className="text-sm font-bold text-on-surface">{card.amount}</p>
               </div>
               <ChevronRight size={16} className="text-outline-variant" />
-            </div>
+            </button>
           )
         })}
       </div>
@@ -179,7 +171,7 @@ export default function WealthVault({ isActive, onSwitchToAgent }: { isActive?: 
       <div>
         <div className="flex items-center justify-between mb-2.5">
           <h3 className="text-sm font-bold text-on-surface">🎯 梦想清单</h3>
-          <span className="text-[11px] text-primary font-medium">查看全部</span>
+          <span className="text-xs text-on-surface-variant">{goals.length} 个目标</span>
         </div>
         <div className="space-y-2.5">
           {goals.map((goal, idx) => (
@@ -192,7 +184,7 @@ export default function WealthVault({ isActive, onSwitchToAgent }: { isActive?: 
                   <span className="text-base">{goal.emoji}</span>
                   <span className="text-sm font-medium text-on-surface">{goal.name}</span>
                 </div>
-                <span className="text-[11px] text-on-surface-variant">{goal.amount}</span>
+                <span className="text-xs text-on-surface-variant">{goal.amount}</span>
               </div>
               <div className="relative h-2 bg-beige rounded-full overflow-hidden">
                 <div
@@ -200,7 +192,7 @@ export default function WealthVault({ isActive, onSwitchToAgent }: { isActive?: 
                   style={{ width: `${goal.progress}%` }}
                 />
               </div>
-              <p className="text-[10px] text-on-surface-variant mt-1 text-right">
+              <p className="mt-1 text-right text-xs text-on-surface-variant">
                 {goal.progress}% 已完成
               </p>
             </div>

@@ -37,7 +37,7 @@ export default function BottomNav({ activeTab, onTabChange }: BottomNavProps) {
                 <div className="absolute -bottom-1 left-1/2 -translate-x-1/2 w-1 h-1 rounded-full bg-primary" />
               )}
             </div>
-            <span className={`text-[10px] font-medium transition-all duration-300 ${
+            <span className={`text-xs font-medium transition-all duration-300 ${
               isActive ? 'font-bold' : ''
             }`}>
               {tab.label}

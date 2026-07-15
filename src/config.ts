@@ -1,5 +1,15 @@
-// API 基础路径：开发环境走 Vite 代理，生产环境直连 Railway 后端
-export const API_BASE = import.meta.env.DEV ? '' : (import.meta.env.VITE_API_BASE || 'https://web-production-f10bf.up.railway.app')
+declare global {
+  // Set by /pixiu-env.js in deployed environments.
+  // Empty or missing value falls back to local/Railway defaults below.
+  var __PIXIU_API_BASE__: string | undefined
+}
+
+const isLocalDevelopment = ['localhost', '127.0.0.1'].includes(globalThis.location?.hostname)
+const runtimeApiBase = globalThis.__PIXIU_API_BASE__?.trim()
+
+export const API_BASE = runtimeApiBase || (isLocalDevelopment
+  ? 'http://localhost:8000'
+  : 'https://web-production-f10bf.up.railway.app')
 
 // 获取或生成用户唯一标识（持久化到 localStorage，每个浏览器唯一）
 export function getUserId(): string {

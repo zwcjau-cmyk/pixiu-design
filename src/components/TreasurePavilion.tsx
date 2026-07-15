@@ -34,15 +34,20 @@ function generateCalendarGrid(year: number, month: number) {
   return cells
 }
 
+const initialDate = new Date()
+const initialYear = Math.min(2028, Math.max(2026, initialDate.getFullYear()))
+const initialMonth = initialYear === initialDate.getFullYear() ? initialDate.getMonth() + 1 : 1
+
 export default function TreasurePavilion({ isActive }: { isActive?: boolean }) {
   const [selectedItem, setSelectedItem] = useState<typeof savedItems[0] | null>(null)
   const [uploading, setUploading] = useState(false)
   const [uploadResult, setUploadResult] = useState<{success: boolean; message: string; sticker_url?: string; product_name?: string; product_price?: number} | null>(null)
   const [dynamicItems, setDynamicItems] = useState<Array<{name: string; price: string; img: string; date: string}>>([])
-  const [viewYear, setViewYear] = useState(2026)
-  const [viewMonth, setViewMonth] = useState(5) // 1-12
-  const [calendarData, setCalendarData] = useState(generateCalendarGrid(2026, 5))
+  const [viewYear, setViewYear] = useState(initialYear)
+  const [viewMonth, setViewMonth] = useState(initialMonth) // 1-12
+  const [calendarData, setCalendarData] = useState(generateCalendarGrid(initialYear, initialMonth))
   const [monthlyExpense, setMonthlyExpense] = useState(0)
+  const [isDemoData, setIsDemoData] = useState(true)
   const [dayDetail, setDayDetail] = useState<{
     date: string;
     records: Array<{category: string; amount: number; description: string; type: string}>;
@@ -101,6 +106,7 @@ export default function TreasurePavilion({ isActive }: { isActive?: boolean }) {
     fetch(`${API_BASE}/api/expense/summary?user_id=${getUserId()}`)
       .then(res => res.json())
       .then(data => {
+        setIsDemoData(Boolean(data.is_demo))
         if (data.records && data.records.length > 0) {
           const dayMap: Record<number, { income: number; expense: number }> = {}
           let totalExpense = 0
@@ -223,7 +229,7 @@ export default function TreasurePavilion({ isActive }: { isActive?: boolean }) {
     if (fileInputRef.current) fileInputRef.current.value = ''
   }
 
-  const allItems = [...dynamicItems, ...savedItems]
+  const allItems = [...dynamicItems, ...(isDemoData ? savedItems : [])]
 
   return (
     <div className="flex flex-col h-full bg-gradient-to-b from-surface-container-high/30 via-surface to-surface px-4 py-3 space-y-4 overflow-y-auto">
@@ -238,6 +244,7 @@ export default function TreasurePavilion({ isActive }: { isActive?: boolean }) {
             onClick={(e) => e.stopPropagation()}
           >
             <button
+              aria-label="关闭宝物预览"
               onClick={() => setSelectedItem(null)}
               className="absolute top-3 right-3 w-8 h-8 flex items-center justify-center rounded-full bg-surface-container-low"
             >
@@ -275,6 +282,7 @@ export default function TreasurePavilion({ isActive }: { isActive?: boolean }) {
               <ChevronLeft size={14} className="text-on-surface-variant" />
             </button>
             <h3 className="text-sm font-bold text-on-surface">📅 {viewYear}年{viewMonth}月</h3>
+            {isDemoData && <span className="rounded-full bg-amber-100 px-2 py-0.5 text-xs font-medium text-amber-700">体验数据</span>}
             <button
               onClick={goForward}
               disabled={!canGoForward()}
@@ -284,14 +292,14 @@ export default function TreasurePavilion({ isActive }: { isActive?: boolean }) {
             </button>
           </div>
           <div className="flex items-center gap-1 px-2 py-0.5 bg-error-container/60 rounded-full">
-            <span className="text-[10px] text-error font-medium">支出 ¥{monthlyExpense}</span>
+            <span className="text-xs text-error font-medium">支出 ¥{monthlyExpense}</span>
           </div>
         </div>
 
         {/* Week day headers */}
         <div className="grid grid-cols-7 gap-1 mb-1">
           {calendarDays.map((d, i) => (
-            <div key={i} className="text-center text-[10px] text-on-surface-variant font-medium py-1">
+            <div key={i} className="text-center text-xs text-on-surface-variant font-medium py-1">
               {d.label}
             </div>
           ))}
@@ -300,10 +308,13 @@ export default function TreasurePavilion({ isActive }: { isActive?: boolean }) {
         {/* Calendar grid */}
         <div className="grid grid-cols-7 gap-1">
           {calendarData.map((cell, idx) => (
-            <div
+            <button
+              type="button"
               key={idx}
               onClick={() => cell && loadDayDetail(cell.day)}
-              className={`relative aspect-square flex flex-col items-center justify-center rounded-lg text-[11px] ${
+              disabled={!cell}
+              aria-label={cell ? `${viewYear}年${viewMonth}月${cell.day}日，支出${cell.expense}元，收入${cell.income}元` : undefined}
+              className={`relative aspect-square flex flex-col items-center justify-center rounded-lg text-xs ${
                 cell ? 'cursor-pointer active:scale-95 transition-transform' : ''
               } ${
                 cell
@@ -321,17 +332,17 @@ export default function TreasurePavilion({ isActive }: { isActive?: boolean }) {
                 <>
                   <span className="text-on-surface font-medium">{cell.day}</span>
                   {cell.sticker && (
-                    <span className="absolute -top-0.5 -right-0.5 text-[9px]">{cell.sticker}</span>
+                    <span className="absolute -top-0.5 -right-0.5 text-xs">{cell.sticker}</span>
                   )}
                   {cell.expense > 0 && (
-                    <span className="text-[8px] text-error/70">-{cell.expense}</span>
+                    <span className="text-xs text-error/70">-{cell.expense}</span>
                   )}
                   {cell.income > 0 && (
-                    <span className="text-[8px] text-secondary">+{cell.income}</span>
+                    <span className="text-xs text-secondary">+{cell.income}</span>
                   )}
                 </>
               )}
-            </div>
+            </button>
           ))}
         </div>
       </div>
@@ -347,6 +358,7 @@ export default function TreasurePavilion({ isActive }: { isActive?: boolean }) {
             onClick={(e) => e.stopPropagation()}
           >
             <button
+              aria-label="关闭收支明细"
               onClick={() => setDayDetail(null)}
               className="absolute top-3 right-3 w-8 h-8 flex items-center justify-center rounded-full bg-surface-container-low"
             >
@@ -371,18 +383,18 @@ export default function TreasurePavilion({ isActive }: { isActive?: boolean }) {
                 <div className="flex items-center gap-3 px-3 py-2.5 bg-surface-container-low rounded-xl">
                   {dayDetail.day_expense > 0 && (
                     <div className="flex-1 text-center">
-                      <p className="text-[10px] text-on-surface-variant">支出</p>
+                      <p className="text-xs text-on-surface-variant">支出</p>
                       <p className="text-sm font-bold text-error">-¥{dayDetail.day_expense}</p>
                     </div>
                   )}
                   {dayDetail.day_income > 0 && (
                     <div className="flex-1 text-center">
-                      <p className="text-[10px] text-on-surface-variant">收入</p>
+                      <p className="text-xs text-on-surface-variant">收入</p>
                       <p className="text-sm font-bold text-secondary">+¥{dayDetail.day_income}</p>
                     </div>
                   )}
                   <div className="flex-1 text-center">
-                    <p className="text-[10px] text-on-surface-variant">当日结余</p>
+                    <p className="text-xs text-on-surface-variant">当日结余</p>
                     <p className={`text-sm font-bold ${dayDetail.day_balance >= 0 ? 'text-secondary' : 'text-error'}`}>
                       {dayDetail.day_balance >= 0 ? '+' : ''}¥{dayDetail.day_balance}
                     </p>
@@ -391,7 +403,7 @@ export default function TreasurePavilion({ isActive }: { isActive?: boolean }) {
 
                 {/* 累计结余 */}
                 <div className="flex items-center justify-between px-3 py-2 bg-primary-container/30 rounded-xl">
-                  <span className="text-[11px] text-on-surface-variant">本月累计结余</span>
+                  <span className="text-xs text-on-surface-variant">本月累计结余</span>
                   <span className={`text-sm font-bold ${dayDetail.cumulative_balance >= 0 ? 'text-secondary' : 'text-error'}`}>
                     {dayDetail.cumulative_balance >= 0 ? '+' : ''}¥{dayDetail.cumulative_balance}
                   </span>
@@ -400,7 +412,7 @@ export default function TreasurePavilion({ isActive }: { isActive?: boolean }) {
                 {/* 收支明细列表 */}
                 {dayDetail.records.length > 0 ? (
                   <div className="space-y-2">
-                    <p className="text-[11px] text-on-surface-variant font-medium">收支明细</p>
+                    <p className="text-xs text-on-surface-variant font-medium">收支明细</p>
                     {dayDetail.records.map((record, idx) => (
                       <div key={idx} className="flex items-center justify-between px-3 py-2 bg-surface-container-low/60 rounded-xl">
                         <div className="flex items-center gap-2">
@@ -409,7 +421,7 @@ export default function TreasurePavilion({ isActive }: { isActive?: boolean }) {
                           </span>
                           <div>
                             <p className="text-[12px] text-on-surface font-medium">{record.description || record.category}</p>
-                            <p className="text-[10px] text-on-surface-variant">{record.category}</p>
+                            <p className="text-xs text-on-surface-variant">{record.category}</p>
                           </div>
                         </div>
                         <span className={`text-[12px] font-bold ${record.type === 'income' ? 'text-secondary' : 'text-error'}`}>
@@ -421,7 +433,7 @@ export default function TreasurePavilion({ isActive }: { isActive?: boolean }) {
                 ) : (
                   <div className="text-center py-4">
                     <p className="text-[12px] text-on-surface-variant">今天没有收支记录 ✨</p>
-                    <p className="text-[10px] text-on-surface-variant/60 mt-1">可以去跟貔貅学长聊聊今天花了什么~</p>
+                    <p className="text-xs text-on-surface-variant/60 mt-1">可以去跟貔貅学长聊聊今天花了什么~</p>
                   </div>
                 )}
               </div>
@@ -439,7 +451,7 @@ export default function TreasurePavilion({ isActive }: { isActive?: boolean }) {
             </div>
             <div>
               <p className="text-sm font-bold text-on-surface">连续打卡 {levelInfo.streak} 天</p>
-              <p className="text-[11px] text-on-surface-variant">坚持就是胜利！🔥</p>
+              <p className="text-xs text-on-surface-variant">坚持就是胜利！🔥</p>
             </div>
           </div>
           <div className="flex items-center gap-1 px-2 py-1 bg-white/60 rounded-lg">
@@ -451,8 +463,8 @@ export default function TreasurePavilion({ isActive }: { isActive?: boolean }) {
         {/* XP Progress */}
         <div className="mb-3">
           <div className="flex items-center justify-between mb-1">
-            <span className="text-[11px] text-on-surface-variant">{levelInfo.title}</span>
-            <span className="text-[11px] text-on-surface-variant">{levelInfo.xp}/{levelInfo.nextXp} XP</span>
+            <span className="text-xs text-on-surface-variant">{levelInfo.title}</span>
+            <span className="text-xs text-on-surface-variant">{levelInfo.xp}/{levelInfo.nextXp} XP</span>
           </div>
           <div className="h-2.5 bg-white/60 rounded-full overflow-hidden">
             <div
@@ -464,7 +476,7 @@ export default function TreasurePavilion({ isActive }: { isActive?: boolean }) {
 
         {/* Badges */}
         <div className="flex items-center gap-2">
-          <span className="text-[11px] text-on-surface-variant">徽章：</span>
+          <span className="text-xs text-on-surface-variant">徽章：</span>
           {levelInfo.badges.map((badge, idx) => (
             <div key={idx} className="w-7 h-7 rounded-full bg-white/70 flex items-center justify-center text-sm shadow-sm">
               {badge}
@@ -482,7 +494,7 @@ export default function TreasurePavilion({ isActive }: { isActive?: boolean }) {
           </div>
           <div className="flex items-center gap-1 px-2 py-0.5 bg-secondary-container/60 rounded-full">
             <ShoppingBag size={10} className="text-secondary" />
-            <span className="text-[10px] text-secondary font-medium">已省 ¥3,236</span>
+            <span className="text-xs text-secondary font-medium">已省 ¥3,236</span>
           </div>
         </div>
 
@@ -499,7 +511,8 @@ export default function TreasurePavilion({ isActive }: { isActive?: boolean }) {
 
         <div className="grid grid-cols-2 gap-2.5">
           {/* Upload button card */}
-          <div
+          <button
+            type="button"
             onClick={() => fileInputRef.current?.click()}
             className="p-3 bg-surface-container-low rounded-xl border-2 border-dashed border-primary/30 shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer active:scale-95 flex flex-col items-center justify-center min-h-[140px]"
           >
@@ -514,20 +527,15 @@ export default function TreasurePavilion({ isActive }: { isActive?: boolean }) {
                   <Camera size={18} className="text-primary" />
                 </div>
                 <p className="text-xs font-medium text-primary text-center">拍照/上传</p>
-                <p className="text-[10px] text-on-surface-variant text-center mt-0.5">忍住没买？拍下来！</p>
+                <p className="text-xs text-on-surface-variant text-center mt-0.5">忍住没买？拍下来！</p>
               </>
             )}
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept="image/*"
-              className="hidden"
-              onChange={handleImageUpload}
-            />
-          </div>
+          </button>
+          <input ref={fileInputRef} type="file" accept="image/*" aria-hidden="true" tabIndex={-1} className="hidden" onChange={handleImageUpload} />
 
           {allItems.map((item, idx) => (
-            <div
+            <button
+              type="button"
               key={idx}
               onClick={() => setSelectedItem(item)}
               className="p-3 bg-surface-container-low rounded-xl border border-outline-variant/15 shadow-sm hover:shadow-md transition-all duration-200 cursor-pointer active:scale-95"
@@ -536,13 +544,14 @@ export default function TreasurePavilion({ isActive }: { isActive?: boolean }) {
                 <img src={item.img} alt={item.name} className="h-14 w-14 object-contain" />
               </div>
               <p className="text-xs font-medium text-on-surface text-center truncate">{item.name}</p>
-              <p className="text-[11px] text-primary font-bold text-center mt-0.5">{item.price}</p>
-              <p className="text-[10px] text-on-surface-variant text-center mt-1">
+              <p className="text-xs text-primary font-bold text-center mt-0.5">{item.price}</p>
+              <p className="text-xs text-on-surface-variant text-center mt-1">
                 {item.date}，你忍住了！💪
               </p>
-            </div>
+            </button>
           ))}
         </div>
+        <p className="mt-2 text-xs leading-relaxed text-on-surface-variant/80">图片会上传用于商品识别和贴纸生成，请勿包含身份证、银行卡号或他人隐私。</p>
       </div>
 
       {/* Bottom spacing */}

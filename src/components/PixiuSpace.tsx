@@ -1,7 +1,8 @@
 import { useState, useRef, useEffect, type ComponentPropsWithoutRef } from 'react'
-import { Send, Sparkles, Loader2 } from 'lucide-react'
+import { Send, Sparkles, Loader2, Settings } from 'lucide-react'
 import ReactMarkdown from 'react-markdown'
 import ScriptMode from './ScriptMode'
+import SettingsPanel from './SettingsPanel'
 import { API_BASE, getUserId } from '../config'
 
 interface Message {
@@ -19,12 +20,12 @@ const quickReplies = [
   {
     emoji: '📊',
     text: '预算规划',
-    query: '请根据我近一个月（最近30天）的收支数据，帮我完成预算规划。\n\n请按以下步骤来：\n\n现状诊断：分析我近一个月的收入水平和支出结构，按类别汇总，计算出储蓄率，判断整体财务状态是"盈余/收支平衡/赤字"哪种。\n\n预算制定/调整：根据我近一个月的实际收支情况，推荐一套合理的月度预算分配方案（可以参考"50/30/20 法则"或根据我的实际情况灵活定制），对比我的实际执行情况，找出哪些类别超支了、哪些有结余，并给出具体的调整建议。\n\n优先级建议：根据我的财务目标（如攒钱、还款、投资等），帮我确定下一阶段最应该重点控制或优化的1-2个支出类别。',
+    query: '请根据我近一个月（最近30天）的收支数据，帮我完成预算规划。先检查数据是否足够；如果记录少于7天或缺少收入数据，请明确说明局限并先给我补录建议，不要假装得出精确结论。\n\n请按以下步骤来：\n\n现状诊断：分析收入水平和支出结构，按类别汇总，计算储蓄率，并说明计算口径。\n\n预算制定/调整：根据我的实际情况推荐月度预算分配，不要机械套用50/30/20法则；对比实际执行，指出超支和结余。\n\n优先级建议：结合我的目标，给出下一阶段最值得调整的1-2个类别和可执行动作。',
   },
   {
     emoji: '📡',
     text: '理财播报',
-    query: '请帮我做一次理财播报。注意：理财播报不需要分析我的日常收支（花了多少钱买早餐这种不用管），重点关注我的资产状况和市场动态。\n\n第一部分：我的资产持仓概览\n\n查看我当前金库中活期池、定期舱、基金图鉴的持仓情况，列出各账户余额和收益表现。\n\n第二部分：市场动态与影响评估\n\n结合近期市场行情（货基利率变动、债基波动、股市大盘走势），评估这些变动对我当前持仓有没有实质影响。如果没有明显影响就简短带过。\n\n第三部分：配置建议（有则说，无则不说）\n\n基于我的资产结构和市场动态，判断是否需要调仓或有新的投资机会。如果当前配置合理、无需调整，直接说"目前配置合理，暂无需调整，继续持有/定投即可"。',
+    query: '请帮我做一次理财播报，重点关注资产状况和市场动态，不分析早餐等日常小额消费。\n\n第一部分：持仓概览。列出活期池、定期舱、基金图鉴的余额，严格区分资产变动、转入转出和投资收益。\n\n第二部分：市场信息。只使用能够确认来源和日期的信息；列出信息时间与来源。如果没有可靠的实时信息，请明确说不知道，不要编造行情。\n\n第三部分：风险教育。结合流动性、投资期限和波动风险解释当前结构可能受到的影响。不要直接替我作出买卖决定，也不要推荐具体产品；如果需要个性化判断，先询问我的风险承受能力、资金用途和计划持有期限。',
   },
 ]
 
@@ -35,7 +36,7 @@ function getTimeStr() {
 
 // 刷新页面一律显示初始问候（不区分新老用户）
 function getGreeting(): string {
-  return `叮咚 —— 恭喜你，成功捕获一只大你两届的金融系野生学长。我是貔貅学长，也是你未来的首席财务大管家。\n别紧张，我可不是来教你过苦行僧日子的。我是来帮你把那些平时被奶茶、外卖和冲动消费吞噬的"能量"，全部转化为你实现梦想的燃料的！\n来，告诉我你的"野心"：你下定决心激活我，是想攒钱干票大的，还是想重组你的支出结构，或者干脆是想学理财早日退休？\n我还得先盘盘你的底子：目前每个月的子弹（收入）大概有多少？最大的吞金兽（日常开销大头）又是什么？\n放心，在学长这里，每一分钱都会成为你进阶的垫脚石！`
+  return `叮咚——我是貔貅学长，你的大学生理财搭子。\n\n我可以帮你记账、看懂支出、规划预算，也会提醒你区分“资产变动”和“投资收益”。建议只供学习和决策参考，最后怎么安排资金由你决定。\n\n今天想先做哪件事：记一笔账、看看预算，还是聊聊你的储蓄目标？`
 }
 
 interface PixiuSpaceProps {
@@ -46,6 +47,7 @@ interface PixiuSpaceProps {
 
 export default function PixiuSpace({ isActive, pendingMessage, onMessageConsumed }: PixiuSpaceProps) {
   const [inScriptMode, setInScriptMode] = useState(false)
+  const [showSettings, setShowSettings] = useState(false)
   const [messages, setMessages] = useState<Message[]>([
     {
       type: 'agent',
@@ -153,7 +155,7 @@ export default function PixiuSpace({ isActive, pendingMessage, onMessageConsumed
                     return updated
                   })
                 }
-              } catch {}
+              } catch { /* 忽略不完整的 SSE 事件 */ }
             }
           }
         }
@@ -179,6 +181,7 @@ export default function PixiuSpace({ isActive, pendingMessage, onMessageConsumed
 
   return (
     <div className="flex flex-col h-full bg-gradient-to-b from-primary-container/40 via-surface to-surface">
+      {showSettings && <SettingsPanel onClose={() => setShowSettings(false)} />}
       {/* Header illustration area */}
       <div className="relative px-4 pt-2 pb-3">
         <div className="relative rounded-2xl overflow-hidden bg-gradient-to-br from-[#FFF3E0] via-[#FFE8CC] to-[#FFDCBE] p-4 shadow-sm">
@@ -203,19 +206,27 @@ export default function PixiuSpace({ isActive, pendingMessage, onMessageConsumed
             </div>
             <div className="flex flex-col items-end">
               <div className="px-2 py-0.5 bg-secondary-container rounded-full">
-                <span className="text-[10px] text-secondary font-medium">Lv.5 金算盘</span>
+                <span className="text-xs text-secondary font-medium">Lv.5 金算盘</span>
               </div>
+              <button
+                aria-label="打开设置与数据"
+                onClick={() => setShowSettings(true)}
+                className="mt-1 flex h-7 w-7 items-center justify-center rounded-full bg-white/60 text-primary transition-colors hover:bg-white"
+              >
+                <Settings size={14} />
+              </button>
             </div>
           </div>
 
-          <div
-            className="mt-3 p-2 bg-white/60 rounded-xl backdrop-blur-sm cursor-pointer hover:bg-white/80 transition-colors active:scale-[0.98]"
+          <button
+            type="button"
+            className="mt-3 w-full p-2 bg-white/60 rounded-xl backdrop-blur-sm cursor-pointer hover:bg-white/80 transition-colors active:scale-[0.98]"
             onClick={() => setInScriptMode(true)}
           >
-            <p className="text-[11px] text-primary text-center font-medium">
+            <p className="text-xs text-primary text-center font-medium">
               📖 点击进入剧情模式 →
             </p>
-          </div>
+          </button>
         </div>
       </div>
 
@@ -271,7 +282,7 @@ export default function PixiuSpace({ isActive, pendingMessage, onMessageConsumed
               ) : (
                 msg.content
               )}
-              <div className={`text-[10px] mt-1 opacity-60 ${
+              <div className={`text-xs mt-1 opacity-60 ${
                 msg.type === 'user' ? 'text-right' : 'text-left'
               }`}>
                 {msg.time}
@@ -338,7 +349,7 @@ export default function PixiuSpace({ isActive, pendingMessage, onMessageConsumed
                                 return updated
                               })
                             }
-                          } catch {}
+                          } catch { /* 忽略不完整的 SSE 事件 */ }
                         }
                       }
                     }
@@ -372,6 +383,7 @@ export default function PixiuSpace({ isActive, pendingMessage, onMessageConsumed
             disabled={loading}
           />
           <button
+            aria-label="发送消息"
             onClick={() => sendMessage(input)}
             disabled={loading || !input.trim()}
             className="w-8 h-8 bg-primary rounded-xl flex items-center justify-center hover:bg-primary-light transition-colors disabled:opacity-50"

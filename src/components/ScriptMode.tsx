@@ -1,6 +1,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { Send, ArrowLeft, Sparkles, Loader2 } from 'lucide-react'
 import { API_BASE, getUserId } from '../config'
+import { PRESET_SCRIPTS, type SelectedScript } from '../data/scripts'
 
 interface Message {
   type: 'agent' | 'user'
@@ -16,33 +17,17 @@ function getTimeStr() {
 
 interface ScriptModeProps {
   onBack: () => void
+  initialScript?: SelectedScript | null
+  customPrompt?: string
 }
 
-const PRESET_SCRIPTS = [
-  {
-    id: 'super_star_01',
-    name: '女明星的逆袭之路',
-    icon: '⭐',
-    desc: '从素人到顶流，你的每一分储蓄都是星途投资！',
-    color: 'from-amber-400 to-orange-500',
-    bgColor: 'bg-amber-50',
-    borderColor: 'border-amber-200',
-  },
-  {
-    id: 'boy_band_02',
-    name: '重生之嫁给男团队长',
-    icon: '💕',
-    desc: '和霸总队长一起攒婚礼基金，甜到上头！',
-    color: 'from-pink-400 to-rose-500',
-    bgColor: 'bg-pink-50',
-    borderColor: 'border-pink-200',
-  },
-]
+export default function ScriptMode({ onBack, initialScript, customPrompt }: ScriptModeProps) {
+  const scriptStorageId = initialScript?.id || (customPrompt ? 'custom_draft' : 'unselected')
+  const storageKey = (key: string) => `script_mode:${getUserId()}:${scriptStorageId}:${key}`
 
-export default function ScriptMode({ onBack }: ScriptModeProps) {
   // 从 sessionStorage 恢复状态（刷新页面会清空 sessionStorage）
   const [messages, setMessages] = useState<Message[]>(() => {
-    const saved = sessionStorage.getItem('script_messages')
+    const saved = sessionStorage.getItem(storageKey('messages'))
     if (saved) {
       try { return JSON.parse(saved) } catch { /* ignore */ }
     }
@@ -55,42 +40,66 @@ export default function ScriptMode({ onBack }: ScriptModeProps) {
   const [input, setInput] = useState('')
   const [loading, setLoading] = useState(false)
   const [sessionId] = useState(() => {
-    const saved = sessionStorage.getItem('script_session_id')
+    const saved = sessionStorage.getItem(storageKey('session_id'))
     if (saved) return saved
     const id = crypto.randomUUID()
-    sessionStorage.setItem('script_session_id', id)
+    sessionStorage.setItem(storageKey('session_id'), id)
     return id
   })
   const [scriptInfo, setScriptInfo] = useState<{name: string; progress: number} | null>(() => {
-    const saved = sessionStorage.getItem('script_info')
+    const saved = sessionStorage.getItem(storageKey('script_info'))
     if (saved) { try { return JSON.parse(saved) } catch { /* ignore */ } }
     return null
   })
   const [previewImg, setPreviewImg] = useState<string | null>(null)
   const [scriptSelected, setScriptSelected] = useState(() => {
-    return sessionStorage.getItem('script_selected') === 'true'
+    return sessionStorage.getItem(storageKey('script_selected')) === 'true'
+  })
+  const [activeScriptId, setActiveScriptId] = useState<string | null>(() => {
+    return sessionStorage.getItem(storageKey('script_active_id')) || null
   })
   const [generatingImage, setGeneratingImage] = useState(false)
   const [welcomeSentAt, setWelcomeSentAt] = useState(() => {
-    const saved = sessionStorage.getItem('script_welcome_sent_at')
+    const saved = sessionStorage.getItem(storageKey('welcome_sent_at'))
     return saved ? Number(saved) : 0
   })
   const messagesEndRef = useRef<HTMLDivElement>(null)
+  const autoSelectTriggeredRef = useRef(false)
 
   // 持久化消息到 sessionStorage
   useEffect(() => {
-    sessionStorage.setItem('script_messages', JSON.stringify(messages))
+    sessionStorage.setItem(storageKey('messages'), JSON.stringify(messages))
   }, [messages])
 
   // 持久化剧本选择状态
   useEffect(() => {
-    sessionStorage.setItem('script_selected', String(scriptSelected))
-    if (scriptInfo) sessionStorage.setItem('script_info', JSON.stringify(scriptInfo))
-  }, [scriptSelected, scriptInfo])
+    sessionStorage.setItem(storageKey('script_selected'), String(scriptSelected))
+    if (scriptInfo) sessionStorage.setItem(storageKey('script_info'), JSON.stringify(scriptInfo))
+    if (activeScriptId) sessionStorage.setItem(storageKey('script_active_id'), activeScriptId)
+  }, [scriptSelected, scriptInfo, activeScriptId])
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' })
   }, [messages])
+
+  useEffect(() => {
+    if (autoSelectTriggeredRef.current) return
+    if (initialScript?.id && initialScript.name) {
+      autoSelectTriggeredRef.current = true
+      if (initialScript.resume) {
+        setScriptSelected(true)
+        setActiveScriptId(initialScript.id)
+        setScriptInfo({ name: initialScript.name, progress: initialScript.progress ?? 0 })
+        return
+      }
+      if (activeScriptId === initialScript.id && scriptSelected) return
+      selectScript(initialScript.id, initialScript.name)
+    } else if (customPrompt?.trim()) {
+      autoSelectTriggeredRef.current = true
+      sendMessage(customPrompt.trim())
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // 再次进入时的欢迎语（已选剧本、非首次进入、10分钟限制）
   const hasShownWelcomeRef = useRef(false)
@@ -103,7 +112,7 @@ export default function ScriptMode({ onBack }: ScriptModeProps) {
       const now = Date.now()
       const tenMinutes = 10 * 60 * 1000
       // 检查是否是从其他 tab 切换回来（messages 已从 sessionStorage 恢复）
-      const savedMessages = sessionStorage.getItem('script_messages')
+      const savedMessages = sessionStorage.getItem(storageKey('messages'))
       const isReentry = savedMessages && JSON.parse(savedMessages).length > 1
       if (isReentry && (now - welcomeSentAt > tenMinutes)) {
         setMessages(prev => [...prev, {
@@ -112,13 +121,22 @@ export default function ScriptMode({ onBack }: ScriptModeProps) {
           time: getTimeStr(),
         }])
         setWelcomeSentAt(now)
-        sessionStorage.setItem('script_welcome_sent_at', String(now))
+        sessionStorage.setItem(storageKey('welcome_sent_at'), String(now))
       }
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
+  function buildScriptStartPrompt(scriptId: string, scriptName: string) {
+    if (initialScript?.id === scriptId && initialScript.customPrompt) {
+      return `我创建并选择了自定义剧本「${scriptName}」（script_id: ${scriptId}）。请根据以下设定生成第一章，并用这个角色设定跟我对话。\n\n${initialScript.customPrompt}`
+    }
+    return `我选择剧本「${scriptName}」（script_id: ${scriptId}），请开始第一章的剧情！用剧本设定的角色来跟我对话。`
+  }
+
   async function selectScript(scriptId: string, scriptName: string) {
     setScriptSelected(true)
+    setActiveScriptId(scriptId)
+    setScriptInfo({ name: scriptName, progress: initialScript?.progress ?? 0 })
     setLoading(true)
 
     // 发送选择剧本的消息
@@ -130,7 +148,7 @@ export default function ScriptMode({ onBack }: ScriptModeProps) {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
-          message: `我选择剧本「${scriptName}」（script_id: ${scriptId}），请开始第一章的剧情！用剧本设定的角色来跟我对话。`,
+          message: buildScriptStartPrompt(scriptId, scriptName),
           user_id: getUserId(),
           session_id: sessionId,
         }),
@@ -175,7 +193,7 @@ export default function ScriptMode({ onBack }: ScriptModeProps) {
                 if (data.done && !data.image_url) {
                   setGeneratingImage(false)
                 }
-              } catch {}
+              } catch { /* 忽略不完整的 SSE 事件 */ }
             }
           }
         }
@@ -200,7 +218,7 @@ export default function ScriptMode({ onBack }: ScriptModeProps) {
       }
 
       // 刷新进度
-      fetch(`${API_BASE}/api/script/progress/web_user`)
+      fetch(`${API_BASE}/api/script/progress/${encodeURIComponent(getUserId())}`)
         .then(r => r.json())
         .then(d => {
           if (d.script_name) setScriptInfo({ name: d.script_name, progress: d.progress_percent || 0 })
@@ -272,7 +290,7 @@ export default function ScriptMode({ onBack }: ScriptModeProps) {
                 if (data.done && !data.image_url) {
                   setGeneratingImage(false)
                 }
-              } catch {}
+              } catch { /* 忽略不完整的 SSE 事件 */ }
             }
           }
         }
@@ -297,7 +315,7 @@ export default function ScriptMode({ onBack }: ScriptModeProps) {
       }
 
       // 刷新进度
-      fetch(`${API_BASE}/api/script/progress/web_user`)
+      fetch(`${API_BASE}/api/script/progress/${encodeURIComponent(getUserId())}`)
         .then(r => r.json())
         .then(d => {
           if (d.script_name) setScriptInfo({ name: d.script_name, progress: d.progress_percent || 0 })
@@ -341,6 +359,7 @@ export default function ScriptMode({ onBack }: ScriptModeProps) {
 
           <div className="relative flex items-center gap-3">
             <button
+              aria-label="返回貔貅空间"
               onClick={onBack}
               className="w-8 h-8 rounded-full bg-white/20 flex items-center justify-center"
             >
@@ -354,7 +373,7 @@ export default function ScriptMode({ onBack }: ScriptModeProps) {
                 <Sparkles size={14} className="text-yellow-300" />
                 剧情模式
               </h1>
-              <p className="text-[11px] text-white/70 mt-0.5">
+              <p className="text-xs text-white/70 mt-0.5">
                 {scriptInfo ? `${scriptInfo.name} · ${scriptInfo.progress}%` : '选择一个剧本开始冒险'}
               </p>
             </div>
@@ -402,13 +421,15 @@ export default function ScriptMode({ onBack }: ScriptModeProps) {
                     <span className="w-1.5 h-1.5 bg-purple-400/60 rounded-full animate-bounce" style={{ animationDelay: '300ms' }} />
                   </div>
                 ) : null}
-                <div className={`text-[10px] mt-1 opacity-60 ${msg.type === 'user' ? 'text-right' : 'text-left'}`}>
+                <div className={`text-xs mt-1 opacity-60 ${msg.type === 'user' ? 'text-right' : 'text-left'}`}>
                   {msg.time}
                 </div>
               </div>
               {/* 内联漫画图片 */}
               {msg.imageUrl && (
-                <div
+                <button
+                  type="button"
+                  aria-label="查看剧情漫画大图"
                   className="cursor-pointer rounded-xl overflow-hidden border border-outline-variant/20 shadow-sm"
                   onClick={() => setPreviewImg(msg.imageUrl!)}
                 >
@@ -418,10 +439,10 @@ export default function ScriptMode({ onBack }: ScriptModeProps) {
                     className="w-full rounded-xl"
                     onError={(e) => { (e.target as HTMLImageElement).style.display = 'none' }}
                   />
-                  <div className="px-2 py-1 bg-gradient-to-r from-purple-50 to-pink-50 text-[10px] text-purple-600 text-center">
+                  <div className="px-2 py-1 bg-gradient-to-r from-purple-50 to-pink-50 text-xs text-purple-600 text-center">
                     点击查看大图
                   </div>
-                </div>
+                </button>
               )}
             </div>
           </div>
@@ -440,11 +461,11 @@ export default function ScriptMode({ onBack }: ScriptModeProps) {
                   <span className="text-lg">{script.icon}</span>
                   <span className="font-medium text-[13px] text-on-surface">{script.name}</span>
                 </div>
-                <p className="text-[11px] text-on-surface-variant mt-1 ml-7">{script.desc}</p>
+                <p className="text-xs text-on-surface-variant mt-1 ml-7">{script.desc}</p>
               </button>
             ))}
-            <div className="text-[10px] text-center text-outline-variant mt-1">
-              或者直接告诉我，你想创建什么剧本~
+            <div className="text-xs text-center text-outline-variant mt-1">
+              剧情用于激励；进度以实际记账、预算和存款行动为准。也可以直接告诉我你想创建什么剧本。
             </div>
           </div>
         )}
@@ -485,6 +506,7 @@ export default function ScriptMode({ onBack }: ScriptModeProps) {
             disabled={loading}
           />
           <button
+            aria-label="发送剧情消息"
             onClick={() => sendMessage(input)}
             disabled={loading || !input.trim()}
             className="w-8 h-8 bg-gradient-to-br from-purple-500 to-pink-500 rounded-xl flex items-center justify-center hover:opacity-90 transition-opacity disabled:opacity-50"
